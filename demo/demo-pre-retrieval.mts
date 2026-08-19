@@ -1,6 +1,8 @@
-﻿/**
- * 绔埌绔紨绀猴細鐪熷疄 agent loop 涓紝棣栬疆妯″瀷璇锋眰蹇呴』鎼哄甫棰勬绱㈡敞鍏ュ潡銆? * 杩愯锛歝d deepseek-harness && pnpm exec tsx <姝ゆ枃浠?
- * 杈撳嚭锛氶杞姹傚畬鏁存枃鏈€佹敞鍏ヤ簨浠躲€佽疆娆＄粺璁°€? */
+/**
+ * 端到端演示：真实 agent loop 中，首轮模型请求必须携带预检索注入块。
+ * 运行：cd deepseek-harness && pnpm exec tsx <此文件>
+ * 输出：首轮请求完整文本、注入事件、轮次统计。
+ */
 import { Context } from '@deepseek-ai/cordis'
 import { CallId, createUserMessage, LlmAdapter } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
@@ -41,7 +43,7 @@ class ScriptedAdapter extends LlmAdapter {
   }
 }
 
-const adapter = new ScriptedAdapter([toolCallResponse(), textResponse('瀹屾垚銆?)])
+const adapter = new ScriptedAdapter([toolCallResponse(), textResponse('完成。')])
 const ctx = new Context()
 await mountAgentLoopTestDependencies(ctx)
 await ctx.plugin(AgentLoop, { agents: [] })
@@ -54,42 +56,42 @@ ctx.llm.registerAdapter(['mock'], adapter)
 const agent = ctx.agentLoop.create(SessionId('demo'), { provider: 'mock', model: 'mock' })
 
 agent.followup(createUserMessage({
-  content: [{ type: 'text', text: '瀹炵幇璁¤垂妯″潡锛屽弬鐓у唴缃戣鑼? }],
+  content: [{ type: 'text', text: '实现计费模块，参照内网规范' }],
   source: { kind: 'user' },
 }))
 await agent.whenIdle()
 
-console.log('===== 杞缁熻 =====')
-console.log(`妯″瀷璇锋眰鏁? ${adapter.requests.length}`)
-console.log(`浼氳瘽浜嬩欢鎬绘暟: ${agent.session.events.length}`)
+console.log('===== 轮次统计 =====')
+console.log(`模型请求数: ${adapter.requests.length}`)
+console.log(`会话事件总数: ${agent.session.events.length}`)
 console.log()
 
 const injections = agent.session.events.filter(
   event => event.type === 'user/message'
     && event.data.source.kind === 'plugin'
     && event.data.source.plugin === 'pre-retrieval')
-console.log(`===== 娉ㄥ叆浜嬩欢锛堝簲鎭颁负 1 鏉★級=====`)
-console.log(`娉ㄥ叆娆℃暟: ${injections.length}`)
+console.log(`===== 注入事件（应恰为 1 条）=====`)
+console.log(`注入次数: ${injections.length}`)
 console.log()
 
-console.log('===== 棣栬疆妯″瀷璇锋眰 messages 閫愭潯 =====')
+console.log('===== 首轮模型请求 messages 逐条 =====')
 for (const [index, message] of adapter.requests[0]!.messages.entries()) {
   const text = message.content
     .filter(block => block.type === 'text')
     .map(block => block.text)
     .join('\n')
   console.log(`--- message[${index}] role=${message.role} ---`)
-  console.log(text.length > 3000 ? `${text.slice(0, 3000)}鈥?鎴柇)` : text)
+  console.log(text.length > 3000 ? `${text.slice(0, 3000)}…(截断)` : text)
   console.log()
 }
 
-console.log('===== 绗簩杞ā鍨嬭姹傦細娉ㄥ叆鍧楀簲浠嶅瓨鍦紙鍘嗗彶閲嶅彂锛岄噸澶嶈璐硅涔夛級=====')
+console.log('===== 第二轮模型请求：注入块应仍存在（历史重发，重复计费语义）=====')
 const second = adapter.requests[1]!.messages
   .flatMap(m => m.content)
   .filter(b => b.type === 'text')
   .map(b => b.text)
   .join('\n')
-console.log(`鍖呭惈棰勬绱㈠潡: ${second.includes('銆愰妫€绱㈣祫鏂?)}`)
-console.log(`娉ㄥ叆瀛楃鏁? ${injections[0]!.data.content.find(b => b.type === 'text')?.text.length ?? 0}`)
+console.log(`包含预检索块: ${second.includes('【预检索资料')}`)
+console.log(`注入字符数: ${injections[0]!.data.content.find(b => b.type === 'text')?.text.length ?? 0}`)
 
 await ctx.fiber.dispose()

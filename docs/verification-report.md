@@ -1,121 +1,142 @@
-﻿# dsh-pre-retrieval 璇︾粏楠岃瘉鎶ュ憡锛坴0.2 鍗囩骇鐗堬級
+# dsh-pre-retrieval 详细验证报告（v0.2 升级版）
 
-> 鐢熸垚鏃堕棿锛?026 骞?路 鎻掍欢 `@deepseek-ai/dsh-pre-retrieval`
-> 瑕嗙洊锛氬绾?v0.2锛堜笂涓嬫枃浼犻€掞級+ queryMode(rule/context) + injectMode(once/per-turn) + resume 璇箟
-> 浠撳簱锛歚deepseek-harness`锛坧ackages/context/pre-retrieval/锛?
+> 生成时间：2026 年 · 插件 `@deepseek-ai/dsh-pre-retrieval`
+> 覆盖：契约 v0.2（上下文传递）+ queryMode(rule/context) + injectMode(once/per-turn) + resume 语义
+> 仓库：`deepseek-harness`（packages/context/pre-retrieval/）
+
 ---
 
-## 1. 楠岃瘉鐜
+## 1. 验证环境
 
-| 椤?| 鍊?|
+| 项 | 值 |
 |---|---|
-| Node.js | v24.16.0锛堣姹?`^22.19.0 \|\| >=24.0.0` 鉁擄級 |
+| Node.js | v24.16.0（要求 `^22.19.0 \|\| >=24.0.0` ✓） |
 | pnpm | 11.7.0 |
-| 娴嬭瘯杩愯鍣?| vitest v4.1.8 |
-| Linter | oxlint 1.76.0锛?9 瑙勫垯锛?|
-| TypeScript | 6.0.3锛坄tsc -b tsconfig.host.json` 鍏ㄤ粨 host 鑱氬悎锛?|
+| 测试运行器 | vitest v4.1.8 |
+| Linter | oxlint 1.76.0（89 规则） |
+| TypeScript | 6.0.3（`tsc -b tsconfig.host.json` 全仓 host 聚合） |
 
-## 2. 娴嬭瘯鐭╅樀锛?2/22 閫氳繃锛?
+## 2. 测试矩阵（22/22 通过）
+
 ### 2.1 MockRetriever
 
-| # | 鐢ㄤ緥 | 楠岃瘉鐐?|
+| # | 用例 | 验证点 |
 |---|---|---|
-| 1 | scores keyword hits and caps at topK, ordered by score | 涓枃鏌ヨ鍛戒腑銆侀檷搴忋€乼opK 涓婇檺 |
-| 2 | returns the default ranking when the query has no terms | 绌烘煡璇㈤€€鍥炲唴缃浉鍏虫€ф帓搴?|
+| 1 | scores keyword hits and caps at topK, ordered by score | 中文查询命中、降序、topK 上限 |
+| 2 | returns the default ranking when the query has no terms | 空查询退回内置相关性排序 |
 
-### 2.2 HttpRetriever锛堝绾?v0.2锛?
-| # | 鐢ㄤ緥 | 楠岃瘉鐐?|
+### 2.2 HttpRetriever（契约 v0.2）
+
+| # | 用例 | 验证点 |
 |---|---|---|
-| 3 | posts the contract body and normalizes hits | `POST` + `{query, top_k, scope}` body + 鍝嶅簲瑙勮寖鍖?|
-| 4 | throws RetrieverError on a non-2xx response | HTTP 503 鈫?`RetrieverError` |
-| 5 | throws RetrieverError when the response lacks a hits array | 鐣稿舰鍝嶅簲 鈫?`RetrieverError` |
-| 6 | throws RetrieverError when configured without an endpoint | 閰嶇疆閿欒 |
+| 3 | posts the contract body and normalizes hits | `POST` + `{query, top_k, scope}` body + 响应规范化 |
+| 4 | throws RetrieverError on a non-2xx response | HTTP 503 → `RetrieverError` |
+| 5 | throws RetrieverError when the response lacks a hits array | 畸形响应 → `RetrieverError` |
+| 6 | throws RetrieverError when configured without an endpoint | 配置错误 |
 
 ### 2.3 renderInjection
 
-| # | 鐢ㄤ緥 | 楠岃瘉鐐?|
+| # | 用例 | 验证点 |
 |---|---|---|
-| 7 | renders an attributed header with per-source counts | 澶撮儴/閫愭潯鏍煎紡 |
-| 8 | truncates to the character budget and marks the result | 鎴柇 + `truncated` 鏍囪 |
+| 7 | renders an attributed header with per-source counts | 头部/逐条格式 |
+| 8 | truncates to the character budget and marks the result | 截断 + `truncated` 标记 |
 
-### 2.4 娉ㄥ叆閫昏緫
+### 2.4 注入逻辑
 
-| # | 鐢ㄤ緥 | 楠岃瘉鐐?|
+| # | 用例 | 验证点 |
 |---|---|---|
-| 9 | injects retrieved hits into the first step and marks the session | 棣栬疆娉ㄥ叆锛泂ource snapshot + **ids meta section**锛坮esume 鍘婚噸鐢級锛沗surfaceOp: append` |
-| 10 | injects only once per session across later steps and turns | once 妯″紡浼氳瘽绾т竴娆?|
-| 11 | injects nothing when disabled | 鎬诲紑鍏?|
-| 12 | injects nothing when no hit passes minScore | 浣庡垎杩囨护 |
-| 13 | respects the character budget end to end | 纭绠楁埅鏂?|
-| 14 | does not inject on non-first steps | 闈?step 1 涓嶆敞鍏?|
+| 9 | injects retrieved hits into the first step and marks the session | 首轮注入；source snapshot + **ids meta section**（resume 去重用）；`surfaceOp: append` |
+| 10 | injects only once per session across later steps and turns | once 模式会话级一次 |
+| 11 | injects nothing when disabled | 总开关 |
+| 12 | injects nothing when no hit passes minScore | 低分过滤 |
+| 13 | respects the character budget end to end | 硬预算截断 |
+| 14 | does not inject on non-first steps | 非 step 1 不注入 |
 
-### 2.5 涓婁笅鏂囦紶閫?+ 澶氳疆 + resume锛坴0.2 鏂板锛?
-| # | 鐢ㄤ緥 | 楠岃瘉鐐?|
+### 2.5 上下文传递 + 多轮 + resume（v0.2 新增）
+
+| # | 用例 | 验证点 |
 |---|---|---|
-| 15 | sends conversation context in the HTTP request body (v0.2) | `{context:[...]}` 鍙戦€併€佺┖ query 鐪佺暐銆乣top_k` 姝ｇ‘ |
-| 16 | injects once across multiple user turns in once mode | 3 杞敤鎴锋秷鎭悗浠嶅彧鏈?1 鏉℃敞鍏?|
-| 17 | per-turn mode injects fresh hits on later turns without repeating doc_ids | 绗簩杞柊闇€姹傛敞鍏ユ柊 doc锛堥儴缃茶鑼冿級锛?*宸叉敞鍏ョ殑 billing 涓嶉噸澶?*锛宨ds 鍏ㄥ眬鍞竴 |
-| 18 | does not re-inject after resume in once mode | 鏂版彃浠跺疄渚?+ 鍚屼竴 session 鈫?涓嶉噸澶嶆敞鍏ワ紙鐘舵€佷粠浼氳瘽鏃ュ織閲嶅缓锛?|
-| 19 | reconstructs injected doc_ids from the session log after resume (per-turn) | 浼氳瘽宸叉湁娉ㄥ叆锛坕ds 璁板綍锛夆啋 鎭㈠鍚庡凡娉ㄥ叆 doc_id 涓嶉噸澶嶆敞鍏?|
-| 20 | degrades silently when the HTTP request throws | fetch 鎶涚綉缁滃紓甯?鈫?涓嶆敞鍏ャ€佷笉鎶涢敊銆佹墦鐐?|
-| 21 | isolates failure state per agent | agent A 妫€绱㈠け璐ヤ笉褰卞搷 agent B 娉ㄥ叆锛堝け璐ョ姸鎬佹寜 agent 闅旂锛?|
+| 15 | sends conversation context in the HTTP request body (v0.2) | `{context:[...]}` 发送、空 query 省略、`top_k` 正确 |
+| 16 | injects once across multiple user turns in once mode | 3 轮用户消息后仍只有 1 条注入 |
+| 17 | per-turn mode injects fresh hits on later turns without repeating doc_ids | 第二轮新需求注入新 doc（部署规范），**已注入的 billing 不重复**，ids 全局唯一 |
+| 18 | does not re-inject after resume in once mode | 新插件实例 + 同一 session → 不重复注入（状态从会话日志重建） |
+| 19 | reconstructs injected doc_ids from the session log after resume (per-turn) | 会话已有注入（ids 记录）→ 恢复后已注入 doc_id 不重复注入 |
+| 20 | degrades silently when the HTTP request throws | fetch 抛网络异常 → 不注入、不抛错、打点 |
+| 21 | isolates failure state per agent | agent A 检索失败不影响 agent B 注入（失败状态按 agent 隔离） |
 
-### 2.6 鐪熷疄 agent-loop 绔埌绔?
-| # | 鐢ㄤ緥 | 楠岃瘉鐐?|
+### 2.6 真实 agent-loop 端到端
+
+| # | 用例 | 验证点 |
 |---|---|---|
-| 22 | carries the pre-retrieved context into the model request and injects only once | 瀹屾暣 loop锛氶杞姹傚惈銆岄妫€绱㈣祫鏂欍€嶅潡锛涚浜岃疆浠庡巻鍙查噸鍙戯紙閲嶅璁¤垂璇箟锛夛紱娉ㄥ叆浜嬩欢鎭?1 鏉?|
+| 22 | carries the pre-retrieved context into the model request and injects only once | 完整 loop：首轮请求含「预检索资料」块；第二轮从历史重发（重复计费语义）；注入事件恰 1 条 |
 
-## 3. 绔埌绔紨绀鸿瘉鎹紙鐪熷疄 agent loop锛宑ontext/once 妯″紡锛?
-婕旂ず鑴氭湰锛歚deepseek_research\demo-pre-retrieval.mts`锛坄cd deepseek-harness && pnpm exec tsx <鑴氭湰>`锛?
-**杈撳叆浠诲姟**锛歚瀹炵幇璁¤垂妯″潡锛屽弬鐓у唴缃戣鑼僠
+## 3. 端到端演示证据（真实 agent loop，context/once 模式）
 
-**棣栬疆妯″瀷璇锋眰 messages锛堥€愭潯锛?*锛?
+演示脚本：`deepseek_research\demo-pre-retrieval.mts`（`cd deepseek-harness && pnpm exec tsx <脚本>`）
+
+**输入任务**：`实现计费模块，参照内网规范`
+
+**首轮模型请求 messages（逐条）**：
+
 ```
 --- message[0] role=user ---
-瀹炵幇璁¤垂妯″潡锛屽弬鐓у唴缃戣鑼?
+实现计费模块，参照内网规范
+
 --- message[1] role=user ---
-銆愰妫€绱㈣祫鏂?路 docs:2 code:1 路 鏉ユ簮 mock銆?docs[1] 銆婂唴缃戞ā鍨嬫湇鍔￠儴缃茶鑼冦€?ops/deploy.md
-  妯″瀷鏈嶅姟缁熶竴璧?vLLM锛屽繀椤诲紑鍚?prefix caching 浠ュ鐢ㄧ浉鍚屽墠缂€鐨?KV cache锛屾樉钁楅檷浣庨噸澶嶈緭鍏ョ殑 prefill 寮€閿€銆?docs[2] 銆婅璐圭郴缁熸灦鏋勩€?src/architecture/billing.md
-  鏈堝害璁¤垂鍏ュ彛 BillingService锛氳鍗曠粨绠?鈫?璐﹀崟鐢熸垚 鈫?瀵硅处锛岃秴鏃堕噸璇?3 娆°€?code[3] 銆夿illingService銆?src/billing/service.ts:42
-  class BillingService(apiKey) 鈥?鏈堝害璁¤垂鍏ュ彛锛岃礋璐ｈ鍗曠粨绠椾笌璐﹀崟鐢熸垚銆俽efs: 17
+【预检索资料 · docs:2 code:1 · 来源 mock】
+docs[1] 《内网模型服务部署规范》 ops/deploy.md
+  模型服务统一走 vLLM，必须开启 prefix caching 以复用相同前缀的 KV cache，显著降低重复输入的 prefill 开销。
+docs[2] 《计费系统架构》 src/architecture/billing.md
+  月度计费入口 BillingService：订单结算 → 账单生成 → 对账，超时重试 3 次。
+code[3] 《BillingService》 src/billing/service.ts:42
+  class BillingService(apiKey) — 月度计费入口，负责订单结算与账单生成。refs: 17
 ```
 
-**鍏抽敭缁熻**锛?
-| 鎸囨爣 | 鍊?| 璇存槑 |
+**关键统计**：
+
+| 指标 | 值 | 说明 |
 |---|---|---|
-| 妯″瀷璇锋眰鏁?| 2 | 宸ュ叿璋冪敤椹卞姩涓よ疆 |
-| 娉ㄥ叆娆℃暟 | **1** | once 妯″紡姣忎細璇濅竴娆?|
-| 娉ㄥ叆鏂囨湰闀垮害 | 351 瀛楃 | 3 鏉″懡涓細docs:2 code:1 |
-| 鎵撶偣鏃ュ織 | `[pre-retrieval] injected 351 chars, 3 hits, 3ms, truncated=false, mode=context/once` | 妫€绱?3ms = 0 token |
-| 绗簩杞惈棰勬绱㈠潡 | **true** | 鍘嗗彶閲嶅彂 = 閲嶅璁¤垂璇箟纭 |
+| 模型请求数 | 2 | 工具调用驱动两轮 |
+| 注入次数 | **1** | once 模式每会话一次 |
+| 注入文本长度 | 351 字符 | 3 条命中：docs:2 code:1 |
+| 打点日志 | `[pre-retrieval] injected 351 chars, 3 hits, 3ms, truncated=false, mode=context/once` | 检索 3ms = 0 token |
+| 第二轮含预检索块 | **true** | 历史重发 = 重复计费语义确认 |
 
-## 4. 瑕嗙洊缂哄彛瀵圭収锛堥拡瀵逛笂杞瘎瀹★級
+## 4. 覆盖缺口对照（针对上轮评审）
 
-| 鍦烘櫙 | 涓婅疆鐘舵€?| 鐜板湪 | 楠岃瘉鐢ㄤ緥 |
+| 场景 | 上轮状态 | 现在 | 验证用例 |
 |---|---|---|---|
-| 澶氳疆瀵硅瘽锛?+ 杞級 | 鉂?| 鉁?| #16 |
-| 鐭ヨ瘑闇€姹備腑閫斿彉鍖?| 鉂?| 鉁?per-turn 澧為噺 | #17 |
-| 浼氳瘽鎭㈠锛坮esume锛?| 鉂?| 鉁?once 涓嶉噸娉ㄥ叆 / per-turn ids 閲嶅缓 | #18 #19 |
-| 缃戠粶寮傚父闄嶇骇锛坒etch 鎶涢敊锛?| 鉂?| 鉁?| #20 |
-| 澶?agent 闅旂 | 鉂?| 鉁?澶辫触鐘舵€侀殧绂?| #21 |
-| 涓婁笅鏂囦氦缁欑煡璇嗗簱锛坈ontext 浼犻€掞級 | 鉂?| 鉁?濂戠害 v0.2 + 鎻掍欢 context 妯″紡 | #15 + 绔埌绔?|
-| compaction 瑙﹀彂鍚庣殑鐪熷疄琛屼负 | 鉂?| 鈿狅笍 閮ㄥ垎锛坕ds 浠庢棩蹇楅噸寤猴紝娉ㄥ叆鍧楄鎽樿鍚庡彲 per-turn 閲嶈ˉ锛涚湡瀹?compaction 寮曟搸鑱旀祴寰?M2 鐜锛?| #19 妯℃嫙 |
-| 娉ㄥ叆娑堟伅椤哄簭瀵规ā鍨嬬悊瑙ｇ殑褰卞搷 | 鈿狅笍 | 鈿狅笍 宸茬煡璁捐锛坅ppend 鍒颁换鍔℃秷鎭箣鍚庯級锛岀暀寰呯湡瀹炴ā鍨嬭瘎娴?| 鈥?|
+| 多轮对话（3+ 轮） | ❌ | ✅ | #16 |
+| 知识需求中途变化 | ❌ | ✅ per-turn 增量 | #17 |
+| 会话恢复（resume） | ❌ | ✅ once 不重注入 / per-turn ids 重建 | #18 #19 |
+| 网络异常降级（fetch 抛错） | ❌ | ✅ | #20 |
+| 多 agent 隔离 | ❌ | ✅ 失败状态隔离 | #21 |
+| 上下文交给知识库（context 传递） | ❌ | ✅ 契约 v0.2 + 插件 context 模式 | #15 + 端到端 |
+| compaction 触发后的真实行为 | ❌ | ⚠️ 部分（ids 从日志重建，注入块被摘要后可 per-turn 重补；真实 compaction 引擎联测待 M2 环境） | #19 模拟 |
+| 注入消息顺序对模型理解的影响 | ⚠️ | ⚠️ 已知设计（append 到任务消息之后），留待真实模型评测 | — |
 
-## 5. 闈欐€佹鏌?
+## 5. 静态检查
+
 ```
 oxlint:            Found 0 warnings and 0 errors.
-tsc -b tsconfig.host.json:  鏃犻敊璇紙exit 0锛?```
+tsc -b tsconfig.host.json:  无错误（exit 0）
+```
 
-## 6. v0.2 鍗囩骇鍐呭
+## 6. v0.2 升级内容
 
-1. **濂戠害 v0.2**锛氳姹備綋鏂板 `context`锛坄KbContextEntry[]`锛宍role: user|assistant|tool`锛夛紝`query` 闄嶄负鍙€夛紱鍝嶅簲鏂板鍙€?`incremental`锛堟彃浠朵笉寮哄埗渚濊禆锛岃嚜韬寜 doc_id 鍘婚噸锛夛紱
-2. **queryMode**锛歚context`锛堥粯璁わ紝鎶婃湁鐣屼細璇濅笂涓嬫枃浜ょ粰鐭ヨ瘑搴撶悊瑙ｏ紝`contextMaxChars=2000`锛? `rule`锛堟彃浠舵彁鍙栧叧閿瘝锛屽悜鍚庡吋瀹癸級锛?3. **injectMode**锛歚once`锛堥粯璁わ級/ `per-turn`锛堟瘡杞閲忥紝鍙敞鍏ユ湭娉ㄥ叆杩囩殑 doc_id锛夛紱
-4. **resume 璇箟**锛氭敞鍏ョ姸鎬侊紙鏄惁宸叉敞鍏ャ€佸凡娉ㄥ叆鐨?doc_id 闆嗗悎锛変粠浼氳瘽鏃ュ織閲嶅缓锛堟敞鍏ユ秷鎭殑 `pre-retrieval-ids` meta section锛夛紝涓嶄緷璧栬繘绋嬪唴瀛樷€斺€旀仮澶嶄細璇濆悗涓嶉噸澶嶆敞鍏ャ€佷笉閲嶅 doc_id锛?5. **澶辫触绛栫暐**锛歰nce 澶辫触鏍囪浼氳瘽銆乸er-turn 澶辫触鏍囪鏈疆锛堜笅杞彲閲嶈瘯锛夛紝鍧囬潤榛橀檷绾с€?
-## 7. 澶嶇幇鍛戒护
+1. **契约 v0.2**：请求体新增 `context`（`KbContextEntry[]`，`role: user|assistant|tool`），`query` 降为可选；响应新增可选 `incremental`（插件不强制依赖，自身按 doc_id 去重）；
+2. **queryMode**：`context`（默认，把有界会话上下文交给知识库理解，`contextMaxChars=2000`）/ `rule`（插件提取关键词，向后兼容）；
+3. **injectMode**：`once`（默认）/ `per-turn`（每轮增量，只注入未注入过的 doc_id）；
+4. **resume 语义**：注入状态（是否已注入、已注入的 doc_id 集合）从会话日志重建（注入消息的 `pre-retrieval-ids` meta section），不依赖进程内存——恢复会话后不重复注入、不重复 doc_id；
+5. **失败策略**：once 失败标记会话、per-turn 失败标记本轮（下轮可重试），均静默降级。
+
+## 7. 复现命令
 
 ```bash
 cd deepseek-harness
-pnpm vitest run packages/context/pre-retrieval            # 22 涓祴璇?pnpm vitest run packages/context/pre-retrieval --reporter=verbose   # 閫愮敤渚嬭緭鍑?pnpm exec oxlint packages/context/pre-retrieval           # lint
-pnpm exec tsc -b tsconfig.host.json                        # 鍏ㄤ粨 typecheck
-pnpm exec tsx deepseek_research\demo-pre-retrieval.mts  # 绔埌绔紨绀?```
+pnpm vitest run packages/context/pre-retrieval            # 22 个测试
+pnpm vitest run packages/context/pre-retrieval --reporter=verbose   # 逐用例输出
+pnpm exec oxlint packages/context/pre-retrieval           # lint
+pnpm exec tsc -b tsconfig.host.json                        # 全仓 typecheck
+pnpm exec tsx deepseek_research\demo-pre-retrieval.mts  # 端到端演示
+```
