@@ -1,8 +1,8 @@
 # @deepseek-ai/dsh-pre-retrieval
 
-Knowledge-base pre-retrieval plugin: **before a model request is prepared**, fetch hits from the internal knowledge base with deterministic retrieval (0 tokens) and inject them into the context, so the agent works on retrieved facts instead of spending exploration turns searching for them.
-
 **English** | [中文](README.md)
+
+Knowledge-base pre-retrieval plugin: **before a model request is prepared**, fetch hits from the internal knowledge base with deterministic retrieval (0 tokens) and inject them into the context, so the agent works on retrieved facts instead of spending exploration turns searching for them.
 
 ## Why it saves tokens
 
