@@ -2,7 +2,7 @@
 
 知识库前置检索插件：**在模型请求派生前**，用确定性检索（0 token）从内部知识库取回命中，注入上下文，让 agent 在检索结果之上工作——把"探索性检索"从 LLM 循环中移除。
 
-> English: [README.en.md](README.en.md)
+[English](README.en.md) | **中文**
 
 ## 为什么省 token
 

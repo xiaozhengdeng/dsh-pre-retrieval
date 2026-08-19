@@ -2,7 +2,7 @@
 
 Knowledge-base pre-retrieval plugin: **before a model request is prepared**, fetch hits from the internal knowledge base with deterministic retrieval (0 tokens) and inject them into the context, so the agent works on retrieved facts instead of spending exploration turns searching for them.
 
-> 中文版: [README.md](README.md)
+**English** | [中文](README.md)
 
 ## Why it saves tokens
 

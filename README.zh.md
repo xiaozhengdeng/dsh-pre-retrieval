@@ -2,7 +2,7 @@
 
 知识库前置检索插件（[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)）：首轮/每轮模型请求前用确定性检索（0 token）从内部知识库取回命中并注入上下文，把"探索性检索"从 LLM 循环中移除。
 
-> English: [README.md](README.md)
+[English](README.md) | **中文**
 
 ## 目录结构
 

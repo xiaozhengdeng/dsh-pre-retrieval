@@ -2,7 +2,7 @@
 
 Knowledge-base pre-retrieval plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness): before the first (or each) model request, fetch hits from the internal knowledge base with deterministic retrieval (0 tokens) and inject them into the context, moving "exploratory search" out of the LLM loop.
 
-> 中文版: [README.zh.md](README.zh.md)
+**English** | [中文](README.zh.md)
 
 ## Layout
 
