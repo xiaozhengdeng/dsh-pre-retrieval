@@ -1,0 +1,7 @@
+﻿# 构建产物（源码交付，lib 由 tsc 生成）
+lib/
+*.tsbuildinfo
+# 依赖与系统文件
+node_modules/
+.DS_Store
+Thumbs.db
